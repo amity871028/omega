@@ -1,0 +1,5 @@
+config.ini
+*.log
+/screenshot/
+*.pyc
+__pycache__/
