@@ -9,20 +9,24 @@ import capture
 import ocr
 import logging
 import configparser
+import auto_copy
+import os
 
 def main():
+    log_file_path = os.path.join(os.path.expanduser('~'), 'my', 'omega', f'{datetime.now().strftime("%Y%m%d_%H_%M")}.log')
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s - %(message)s',
-        filename=f'{datetime.now().strftime(f'%Y%m%d_%H_%M')}.log',
+        filename=log_file_path,
         filemode='a'  # a: add more, w: cover
     )
     # read config
     config = configparser.ConfigParser()
-    config.read('config.ini')
+    config_file_path = os.path.join(os.path.expanduser('~'), 'my', 'omega', 'config.ini')
+    config.read(config_file_path)
     username = config['credentials']['username']
     password = config['credentials']['password']
-
+    
     try:
         logging.info(' start ')
         # create Chrome WebDriver
@@ -31,8 +35,8 @@ def main():
         options.add_argument('--ignore-certificate-errors')
         driver = webdriver.Chrome(options=options)
         
-        driver.set_window_size(1050, 1000) # width, height
-        driver.set_window_position(400, 0) # x, y
+        driver.set_window_size(1100, 1000) # width, height
+        driver.set_window_position(450, 0) # x, y
 
         logging.info(' start: navigate to main page ')
 
@@ -44,12 +48,13 @@ def main():
 
         prev_time = datetime.now()
         count = 1
+        stop_count = 0
         last_number = ''
         while True:
             logging.info(' while start ')
             crt_time = datetime.now()
             # end if waiting too long to get a new operating
-            if (crt_time - prev_time).total_seconds() > 3 * 60 and count > 3:
+            if stop_count > 5 and count > 3:
                 driver.quit()
                 logging.info(' operating end ')
                 logging.info(f'count: {count}')
@@ -60,11 +65,10 @@ def main():
                 logging.info(' no operating ')
                 return
             
-            screenshot_name = crt_time.strftime(f'%Y%m%d_%H_%M_{count}')
-            logging.info(f' gen screenshot, name: {screenshot_name} ')
-            capture.save_screenshot(screenshot_name)
-            operating_text = ocr.get_string(screenshot_name)
-            number, operator = ocr.get_request(operating_text)
+            cmd_text = auto_copy.get_string()
+            logging.info(f' cmd_text: {cmd_text}')
+            number, operator = auto_copy.get_request(cmd_text)
+
             logging.info(f'number, operator: {number}, {operator}')
             if(number and number != last_number):
                 logging.info(' enter ')
@@ -73,15 +77,21 @@ def main():
                 crt_number_val = crt_number.get_attribute("value")
                 if(number in crt_number_val):
                     logging.info(' start operating ')
-                    operate(driver=driver, operator=operator)
+                    try:
+                        operate(driver=driver, operator=operator)
+                        last_number = number
+                        prev_time = crt_time
+                        count += 1
+                        stop_count = 0
+                    except Exception as e:
+                        logging.error(f' error: {e}')
                     logging.info(' end operating ')
-                    last_number = number
-                    prev_time = crt_time
-                    count+=1
                 else:
                     logging.info('not match!')
+                    stop_count += 1
             else:
                 logging.info('none or duplicate, pass!')
+                stop_count += 1
 
             time.sleep(10)
         
@@ -89,8 +99,8 @@ def main():
         logging.warning(" end by myself")
     finally:
         logging.info(" end by system")
-        logging.shutdown()  # 強制 logger 完成並保存所有日誌
-        print("日誌已保存至 app.log")
+        logging.shutdown()
+        print("日誌已保存至 .log")
 
 
 def navigate_to_main_page(driver, username, password):
@@ -155,18 +165,23 @@ def operate(driver, operator):
     operator_btn.click()
     amount_input.send_keys("200")
 
+    time.sleep(0.5)
     confirm_btn = WebDriverWait(driver, 10).until(
         EC.element_to_be_clickable((By.XPATH, '//button[text()="確認檢測"]')))
     confirm_btn.click()
 
+    time.sleep(0.5)
 
     confirm_again_btn = WebDriverWait(driver, 10).until(
         EC.element_to_be_clickable((By.XPATH, '//button[text()="確認"]')))
     print(confirm_again_btn)
-    # confirm_again_btn.click()
-
-    # wait for me to check and click ok
-    time.sleep(3)
+    confirm_again_btn.click()
+    
+    confirm_again2_btn = WebDriverWait(driver, 10).until(
+        EC.element_to_be_clickable((By.XPATH, '//button[text()="OK"]')))
+    confirm_again2_btn.click()
+    
+    time.sleep(15)
 
 
 
