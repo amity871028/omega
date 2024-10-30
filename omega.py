@@ -42,7 +42,7 @@ def main():
 
         # login and arrive the operating page
         navigate_to_main_page(driver=driver, username=username, password=password)
-        
+
         logging.info(' end: navigate to main page ')
         
 
@@ -52,6 +52,7 @@ def main():
         last_number = ''
         while True:
             logging.info(' while start ')
+            logging.info(f'count: {count}, stop_count: {stop_count}')
             crt_time = datetime.now()
             # end if waiting too long to get a new operating
             if stop_count > 5 and count > 3:
@@ -60,7 +61,7 @@ def main():
                 logging.info(f'count: {count}')
                 return
             # this time no operating
-            if (crt_time - prev_time).total_seconds() > 30 * 60 and count == 0:
+            if (crt_time - prev_time).total_seconds() > 20 * 60 and count == 1:
                 driver.quit()
                 logging.info(' no operating ')
                 return
